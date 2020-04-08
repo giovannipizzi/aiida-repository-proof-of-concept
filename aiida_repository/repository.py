@@ -4,7 +4,7 @@ import os
 import time
 from sqlalchemy import create_engine
 
-from disk_objectstore.container import Container
+from disk_objectstore import Container
 from .models import DbNodeRepo, Base
 from disk_objectstore.utils import LazyOpener
 

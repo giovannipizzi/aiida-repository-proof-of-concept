@@ -9,7 +9,7 @@ import sys
 import time
 
 from aiida_repository.repository import Repository, FileType
-from disk_objectstore.container import Container
+from disk_objectstore import Container
 
 
 def create_folder(base, node_repo, start_from=""):
