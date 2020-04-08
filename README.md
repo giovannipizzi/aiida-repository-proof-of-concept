@@ -3,6 +3,10 @@
 A simple mock-up of a possible new implementation of the AiiDA repository,
 leveraging the disk-objectstore package.
 
+NOTE: you need to install first the [disk-objectstore](https://github.com/giovannipizzi/disk-objectstore) package.
+This is not yet on pip, so you need to get it with `git` and pip install it
+in editable mode.
+
 ## Goal
 This is not meant to be a final implementation, but just a simple mock-up
 implementation to test the interface, and the performance.
