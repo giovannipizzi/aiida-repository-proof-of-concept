@@ -37,7 +37,7 @@ setup(
     install_requires=[
         'sqlalchemy',
         'psycopg2-binary',
-        'disk-objectstore'
+        'disk-objectstore>=0.2'
     ],
     extras_require={
         "testing": [

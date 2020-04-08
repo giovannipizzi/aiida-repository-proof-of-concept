@@ -1,4 +1,4 @@
 sqlalchemy
 psycopg2-binary
-disk-objectstore
+disk-objectstore>=0.2
 
