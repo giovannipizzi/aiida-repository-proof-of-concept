@@ -29,7 +29,7 @@ def create_folder(base, node_repo, start_from=""):
 
 def export_from_pack(extract_to, source_repo, node_uuids_groups,  # pylint: disable=too-many-locals
         print_space_statistics=False, compress=False):
-    """Export the uuids, provided in groups, to the extract_to folder, directly into packs.
+    """Export the hashkeys, provided in groups, to the extract_to folder, directly into packs.
 
     This is a way to estimate the speed in re-exporting.
     """
@@ -40,34 +40,34 @@ def export_from_pack(extract_to, source_repo, node_uuids_groups,  # pylint: disa
 
     start = time.time()
     for idx, node_uuids_chunk in enumerate(node_uuids_groups, start=1):
-        obj_uuids = []
+        obj_hashkeys = []
         for repo_node in source_repo.get_node_repositories(node_uuids_chunk):
-            obj_uuids.extend(repo_node.get_all_obj_uuids())
-        print("{} objects to write in phase {}".format(len(obj_uuids), idx))
+            obj_hashkeys.extend(repo_node.get_all_obj_hashkeys())
+        print("{} objects to write in phase {}".format(len(obj_hashkeys), idx))
 
-        with source_repo.container.get_object_streams_and_size(obj_uuids) as triplets:
+        with source_repo.container.get_objects_stream_and_size(obj_hashkeys) as triplets:
             ## NOTE! This does not work because the object streams yielded by the 
             ## triplets generator must be consumed immediately,
             ## as they are then closed.                
-            ## old_obj_uuids = []
+            ## old_obj_hashkeys = []
             # streams = []
-            # for old_obj_uuid, stream, _ in triplets:
-            #     old_obj_uuids.append(old_obj_uuid)
+            # for old_obj_hashkey, stream, _ in triplets:
+            #     old_obj_hashkeys.append(old_obj_hashkey)
             #     streams.append(stream)
-            # new_obj_uuids = output_container.add_streamed_objects_to_pack(
+            # new_obj_hashkeys = output_container.add_streamed_objects_to_pack(
             #     streams, compress=compress)
             ## This is needed to recreate the metadata to put in the JSON
             ## I'm not doing it in this example
-            # old_new_obj_uuid_mapping = dict(zip(old_obj_uuids, new_obj_uuids))
-            old_obj_uuids = []
-            new_obj_uuids = []
-            for old_obj_uuid, stream, _ in triplets:
-                old_obj_uuids.append(old_obj_uuid)
-                new_obj_uuids.append(output_container.add_streamed_objects_to_pack(
+            # old_new_obj_hashkey_mapping = dict(zip(old_obj_hashkeys, new_obj_hashkeys))
+            old_obj_hashkeys = []
+            new_obj_hashkeys = []
+            for old_obj_hashkey, stream, _ in triplets:
+                old_obj_hashkeys.append(old_obj_hashkey)
+                new_obj_hashkeys.append(output_container.add_streamed_objects_to_pack(
                     [stream], compress=compress)[0])
             ## This is needed to recreate the metadata to put in the JSON
             ## I'm not doing it in this example
-            old_new_obj_uuid_mapping = dict(zip(old_obj_uuids, new_obj_uuids))
+            old_new_obj_hashkey_mapping = dict(zip(old_obj_hashkeys, new_obj_hashkeys))
 
             # Print some size statistics
             if print_space_statistics:
@@ -78,7 +78,7 @@ def export_from_pack(extract_to, source_repo, node_uuids_groups,  # pylint: disa
     tot_time = time.time() - start
     print("Time to store all objects (from packed to packed) in 2 steps: {:.3f} s".format(tot_time))
 
-    return output_container, old_new_obj_uuid_mapping
+    return output_container, old_new_obj_hashkey_mapping
 
 
 def export_from_pack_grouped(extract_to, source_repo, node_uuids_groups,  # pylint: disable=too-many-locals,too-many-arguments
@@ -97,69 +97,69 @@ def export_from_pack_grouped(extract_to, source_repo, node_uuids_groups,  # pyli
 
     start = time.time()
     for idx, node_uuids_chunk in enumerate(node_uuids_groups, start=1):
-        obj_uuids = []
+        obj_hashkeys = []
         for repo_node in source_repo.get_node_repositories(node_uuids_chunk):
-            obj_uuids.extend(repo_node.get_all_obj_uuids())
-        print("{} objects to write in phase {}".format(len(obj_uuids), idx))
+            obj_hashkeys.extend(repo_node.get_all_obj_hashkeys())
+        print("{} objects to write in phase {}".format(len(obj_hashkeys), idx))
 
-        with source_repo.container.get_object_streams_and_size(obj_uuids) as triplets:
-            old_obj_uuids = []
-            new_obj_uuids = []
+        with source_repo.container.get_objects_stream_and_size(obj_hashkeys) as triplets:
+            old_obj_hashkeys = []
+            new_obj_hashkeys = []
             content_cache = {}
             cache_size = 0
-            for old_obj_uuid, stream, size in triplets:
+            for old_obj_hashkey, stream, size in triplets:
                 # If the object itself is too big, just write it directly
                 # via streams, bypassing completely the cache
                 if size > max_memory_usage:  
-                    print("DEBUG: DIRECT WRITE OF OBJECT (size={}, old-uuid: {})".format(size, old_obj_uuid))
-                    old_obj_uuids.append(old_obj_uuid)
+                    print("DEBUG: DIRECT WRITE OF OBJECT (size={}, old-hashkey: {})".format(size, old_obj_hashkey))
+                    old_obj_hashkeys.append(old_obj_hashkey)
                     write_start = time.time()
-                    new_obj_uuids.append(output_container.add_streamed_objects_to_pack(
+                    new_obj_hashkeys.append(output_container.add_streamed_objects_to_pack(
                         [stream], compress=compress)[0])
                     write_time += time.time() - write_start
                 # I were to read the content, I would be filling too much memory - I 
                 # flush the cache first
                 elif cache_size + size > max_memory_usage:
                     # Flush the cotnent of the cache
-                    print("DEBUG: FLUSHING CACHE (current: {}, new: {}) while old-uuid: {}".format(cache_size, size, old_obj_uuid))
-                    temp_old_uuids = []
+                    print("DEBUG: FLUSHING CACHE (current: {}, new: {}) while old-hashkey: {}".format(cache_size, size, old_obj_hashkey))
+                    temp_old_hashkeys = []
                     stream_list = []
-                    for old_cached_uuid, cached_stream in content_cache.items():
-                        temp_old_uuids.append(old_cached_uuid)
+                    for old_cached_hashkey, cached_stream in content_cache.items():
+                        temp_old_hashkeys.append(old_cached_hashkey)
                         stream_list.append(cached_stream)
                     write_start = time.time()
-                    temp_new_uuids = output_container.add_streamed_objects_to_pack(stream_list, compress=compress)
+                    temp_new_hashkeys = output_container.add_streamed_objects_to_pack(stream_list, compress=compress)
                     write_time += time.time() - write_start
-                    old_obj_uuids += temp_old_uuids
-                    new_obj_uuids += temp_new_uuids
+                    old_obj_hashkeys += temp_old_hashkeys
+                    new_obj_hashkeys += temp_new_hashkeys
                     content_cache = {}
                     cache_size = 0
                     # I add this to the cache for the next round
-                    content_cache[old_obj_uuid] = io.BytesIO(stream.read())
+                    content_cache[old_obj_hashkey] = io.BytesIO(stream.read())
                     cache_size += size
                 # I can add this object to the memory cache, it is not too big.
                 # I write it as a stream.
                 else:
-                    content_cache[old_obj_uuid] = io.BytesIO(stream.read())
+                    content_cache[old_obj_hashkey] = io.BytesIO(stream.read())
                     cache_size += size
 
             # The for loop is finished. Most probably I still have content in the
             # cache, just flush it
             print("DEBUG: FINAL CACHE FLUSH (size: {})".format(cache_size))
-            temp_old_uuids = []
+            temp_old_hashkeys = []
             stream_list = []
-            for old_cached_uuid, cached_stream in content_cache.items():
-                temp_old_uuids.append(old_cached_uuid)
+            for old_cached_hashkey, cached_stream in content_cache.items():
+                temp_old_hashkeys.append(old_cached_hashkey)
                 stream_list.append(cached_stream)
             write_start = time.time()
-            temp_new_uuids = output_container.add_streamed_objects_to_pack(stream_list, compress=compress)
+            temp_new_hashkeys = output_container.add_streamed_objects_to_pack(stream_list, compress=compress)
             write_time += time.time() - write_start
-            old_obj_uuids += temp_old_uuids
-            new_obj_uuids += temp_new_uuids
+            old_obj_hashkeys += temp_old_hashkeys
+            new_obj_hashkeys += temp_new_hashkeys
             content_cache = {}
             cache_size = 0
 
-            old_new_obj_uuid_mapping = dict(zip(old_obj_uuids, new_obj_uuids))
+            old_new_obj_hashkey_mapping = dict(zip(old_obj_hashkeys, new_obj_hashkeys))
 
             # Print some size statistics
             if print_space_statistics:
@@ -170,7 +170,7 @@ def export_from_pack_grouped(extract_to, source_repo, node_uuids_groups,  # pyli
     tot_time = time.time() - start
     print("Time to store all objects (from packed to packed) in 2 steps: {:.3f} s (of which write-time: {:.3f} s)".format(tot_time, write_time))
 
-    return output_container, old_new_obj_uuid_mapping
+    return output_container, old_new_obj_hashkey_mapping
 
 
 def import_from_legacy_repo(repo, node_folder, compress):
@@ -272,12 +272,12 @@ def main(path, clear,  # pylint: disable=too-many-arguments,too-many-locals,too-
         #output_objectstore, old_new_mapping = export_from_pack(extract_to, repo, [node_uuids1, node_uuids2], compress=compress)
         output_objectstore, old_new_mapping = export_from_pack_grouped(extract_to, repo, [node_uuids1, node_uuids2], compress=compress)
 
-        with repo.container.get_object_streams_and_size(old_new_mapping.keys()) as triplets:
-            for old_uuid, _, old_size in triplets:
+        with repo.container.get_objects_stream_and_size(old_new_mapping.keys()) as triplets:
+            for old_hashkey, _, old_size in triplets:
                 # TODO: Not the fastest method, we should add get_object_size()
-                new_size = len(output_objectstore.get_object_content(old_new_mapping[old_uuid]))
+                new_size = len(output_objectstore.get_object_content(old_new_mapping[old_hashkey]))
                 assert new_size == old_size, "{} ({}) vs {} ({})".format(
-                    new_size, old_new_mapping[old_uuid], old_size, old_uuid
+                    new_size, old_new_mapping[old_hashkey], old_size, old_hashkey
                 )
 
         # Print space statistics for exported 

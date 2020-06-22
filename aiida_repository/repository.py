@@ -23,7 +23,7 @@ class Repository:
     def __init__(self, db_user, db_name, db_password, folder, db_port=5432, db_host="localhost"): # pylint: disable=too-many-arguments
         self._container = Container(folder=folder)
         if not self._container.is_initialised:
-            self._container.init_container(pack_prefix_len=2, loose_prefix_len=2)
+            self._container.init_container(pack_size_target=1024 * 1024 * 1024, loose_prefix_len=2, hash_type='sha256')
         self._db_user = db_user
         self._db_name = db_name
         self._db_password = db_password
@@ -159,26 +159,26 @@ class Repository:
             len(folder_metas), tot_time))
 
         start = time.time()
-        obj_uuids = self._container.add_streamed_objects_to_pack(
+        obj_hashkeys = self._container.add_streamed_objects_to_pack(
             streams, compress=compress, open_streams=True)
         tot_time = time.time() - start
-        print("Time to store {} files directly to packs: {:.3f} s".format(len(obj_uuids), tot_time))
+        print("Time to store {} files directly to packs: {:.3f} s".format(len(obj_hashkeys), tot_time))
 
         start = time.time()
         paths_for_node = collections.defaultdict(dict)
 
         # Regroup by node UUID
-        for obj_uuid, (node_uuid, path) in zip(obj_uuids, paths):
-            paths_for_node[node_uuid][path] = obj_uuid
+        for obj_hashkey, (node_uuid, path) in zip(obj_hashkeys, paths):
+            paths_for_node[node_uuid][path] = obj_hashkey
 
-        # Update the object UUIDs of the files in the folder_meta dictionary
+        # Update the object hash keys of the files in the folder_meta dictionary
         for node_uuid, paths in paths_for_node.items():
-            for (dir_pieces, filename), obj_uuid in paths.items():
+            for (dir_pieces, filename), obj_hashkey in paths.items():
                 folder_meta = folder_metas[node_uuid]
                 element = folder_meta['dir']
                 for piece in dir_pieces:
                     element = element[piece]['dir']
-                element[filename]['obj'] = obj_uuid
+                element[filename]['obj'] = obj_hashkey
 
         # Store the folder_meta to the postgres DB
         session = self._get_cached_session()
@@ -207,17 +207,17 @@ class NodeRepository:
     def node_uuid(self):
         return self._node_uuid
 
-    def _get_obj_uuids_for_meta_dir(self, meta_dir):
-        obj_uuids = []
+    def _get_obj_hashkeys_for_meta_dir(self, meta_dir):
+        obj_hashkeys = []
         for subelement in meta_dir.values():
             if 'obj' in subelement:
-                obj_uuids.append(subelement['obj'])
+                obj_hashkeys.append(subelement['obj'])
             else:
-                obj_uuids += self._get_obj_uuids_for_meta_dir(subelement['dir'])
-        return obj_uuids
+                obj_hashkeys += self._get_obj_hashkeys_for_meta_dir(subelement['dir'])
+        return obj_hashkeys
 
-    def get_all_obj_uuids(self):
-        return self._get_obj_uuids_for_meta_dir(self._folder_meta['dir'])
+    def get_all_obj_hashkeys(self):
+        return self._get_obj_hashkeys_for_meta_dir(self._folder_meta['dir'])
 
     def list_objects(self, key=None):
         """Return a list of the objects contained in this repository, optionally in the given sub directory.
@@ -288,8 +288,8 @@ class NodeRepository:
         if 'obj' not in lastobj_meta:
             raise IOError("{} is not a file in node {}".format(this_dir, self.node_uuid))
 
-        obj_uuid = lastobj_meta['obj']
-        return self._container.get_object_stream(obj_uuid)
+        obj_hashkey = lastobj_meta['obj']
+        return self._container.get_object_stream(obj_hashkey)
 
 
     def get_object(self, key):
