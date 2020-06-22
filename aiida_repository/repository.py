@@ -2,11 +2,13 @@ import collections
 import enum
 import os
 import time
-from sqlalchemy import create_engine
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from disk_objectstore import Container
-from .models import DbNodeRepo, Base
 from disk_objectstore.utils import LazyOpener
+
+from .models import DbNodeRepo, Base
 
 
 class FileType(enum.Enum):
@@ -42,8 +44,6 @@ class Repository:
 
     def _get_session(self, create=False):
         """Return a new session to connect to the pack-index SQLite DB."""
-        from sqlalchemy.orm import sessionmaker
-
         engine = create_engine('postgresql://{}:{}@{}:{}/{}'.format(
             self._db_user, self._db_password, self._db_host, self._db_port, self._db_name
         ))
@@ -318,11 +318,10 @@ class NodeRepository:
 
         if 'dir' in lastobj_meta:
             return File(lastobj_name, FileType.DIRECTORY)
-        elif 'obj' in lastobj_meta:
+        if 'obj' in lastobj_meta:
             return File(lastobj_name, FileType.FILE)
-        else:
-            raise RuntimeError("Invalid object in the folder_meta, neither a folder nor a file: {}, {}, {}, {}".format(
-                lastobj_meta, dir_pieces, lastobj_name, self._folder_meta))
+        raise RuntimeError("Invalid object in the folder_meta, neither a folder nor a file: {}, {}, {}, {}".format(
+            lastobj_meta, dir_pieces, lastobj_name, self._folder_meta))
 
     def get_object_content(self, key):
         """Return the content of a object identified by key.
