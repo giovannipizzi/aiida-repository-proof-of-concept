@@ -162,7 +162,7 @@ class Repository:
         obj_hashkeys = self._container.add_streamed_objects_to_pack(
             streams, compress=compress, open_streams=True)
         tot_time = time.time() - start
-        print("Time to store {} files directly to packs: {:.3f} s".format(len(obj_hashkeys), tot_time))
+        print("Time to read {} files and then store them directly to packs: {:.3f} s".format(len(obj_hashkeys), tot_time))
 
         start = time.time()
         paths_for_node = collections.defaultdict(dict)
