@@ -316,7 +316,7 @@ def main(
             shutil.rmtree(extract_to)
     if os.path.exists(extract_to):
         print(
-            "The folder '{}' exists - either delete it, or specify the -C option"
+            "The folder '{}' exists - either delete it, or specify the -C option".format(extract_to)
         )
         sys.exit(1)
     os.mkdir(extract_to)
