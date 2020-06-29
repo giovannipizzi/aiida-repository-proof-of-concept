@@ -51,7 +51,7 @@ def export_from_pack(
             obj_hashkeys.extend(repo_node.get_all_obj_hashkeys())
         print("{} objects to write in phase {}".format(len(obj_hashkeys), idx))
 
-        with source_repo.container.get_objects_stream_and_size(
+        with source_repo.container.get_objects_stream_and_meta(
                 obj_hashkeys) as triplets:
             ## NOTE! This does not work because the object streams yielded by the
             ## triplets generator must be consumed immediately,
@@ -120,19 +120,19 @@ def export_from_pack_grouped(
             obj_hashkeys.extend(repo_node.get_all_obj_hashkeys())
         print("{} objects to write in phase {}".format(len(obj_hashkeys), idx))
 
-        with source_repo.container.get_objects_stream_and_size(
+        with source_repo.container.get_objects_stream_and_meta(
                 obj_hashkeys) as triplets:
             old_obj_hashkeys = []
             new_obj_hashkeys = []
             content_cache = {}
             cache_size = 0
-            for old_obj_hashkey, stream, size in triplets:
+            for old_obj_hashkey, stream, meta in triplets:
                 # If the object itself is too big, just write it directly
                 # via streams, bypassing completely the cache
-                if size > max_memory_usage:
+                if meta['size'] > max_memory_usage:
                     print(
                         "DEBUG: DIRECT WRITE OF OBJECT (size={}, old-hashkey: {})"
-                        .format(size, old_obj_hashkey))
+                        .format(meta['size'], old_obj_hashkey))
                     old_obj_hashkeys.append(old_obj_hashkey)
                     write_start = time.time()
                     new_obj_hashkeys.append(
@@ -141,11 +141,11 @@ def export_from_pack_grouped(
                     write_time += time.time() - write_start
                 # I were to read the content, I would be filling too much memory - I
                 # flush the cache first
-                elif cache_size + size > max_memory_usage:
+                elif cache_size + meta['size'] > max_memory_usage:
                     # Flush the cotnent of the cache
                     print(
                         "DEBUG: FLUSHING CACHE (current: {}, new: {}) while old-hashkey: {}"
-                        .format(cache_size, size, old_obj_hashkey))
+                        .format(cache_size, meta['size'], old_obj_hashkey))
                     temp_old_hashkeys = []
                     stream_list = []
                     for old_cached_hashkey, cached_stream in content_cache.items(
@@ -162,12 +162,12 @@ def export_from_pack_grouped(
                     cache_size = 0
                     # I add this to the cache for the next round
                     content_cache[old_obj_hashkey] = io.BytesIO(stream.read())
-                    cache_size += size
+                    cache_size += meta['size']
                 # I can add this object to the memory cache, it is not too big.
                 # I write it as a stream.
                 else:
                     content_cache[old_obj_hashkey] = io.BytesIO(stream.read())
-                    cache_size += size
+                    cache_size += meta['size']
 
             # The for loop is finished. Most probably I still have content in the
             # cache, just flush it
@@ -373,15 +373,15 @@ def main(
             compress=compress,
             pack_size_target=pack_size_target)
 
-        with repo.container.get_objects_stream_and_size(
+        with repo.container.get_objects_stream_and_meta(
                 old_new_mapping.keys()) as triplets:
-            for old_hashkey, _, old_size in triplets:
+            for old_hashkey, _, old_meta in triplets:
                 # TODO: Not the fastest method, we should add get_object_size()
                 new_size = len(
                     output_objectstore.get_object_content(
                         old_new_mapping[old_hashkey]))
-                assert new_size == old_size, "{} ({}) vs {} ({})".format(
-                    new_size, old_new_mapping[old_hashkey], old_size,
+                assert new_size == old_meta['size'], "{} ({}) vs {} ({})".format(
+                    new_size, old_new_mapping[old_hashkey], old_meta['size'],
                     old_hashkey)
 
         # Print space statistics for exported
