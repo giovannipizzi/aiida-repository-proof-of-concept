@@ -1,4 +1,4 @@
-# aiida-repository (test)
+# aiida-repository (proof of concept)
 
 **NOTE! THIS WAS JUST A FIRST PROOF OF CONCEPT OF THE AIIDA FILE REPOSITORY.**
 **This was the reimplemented in AiiDA (using similar concepts) and will appear in AiiDA 2.0.**
