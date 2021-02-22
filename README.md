@@ -1,4 +1,9 @@
-# aiida-repository
+# aiida-repository (test)
+
+**NOTE! THIS WAS JUST A FIRST PROOF OF CONCEPT OF THE AIIDA FILE REPOSITORY.**
+**This was the reimplemented in AiiDA (using similar concepts) and will appear in AiiDA 2.0.**
+
+**This repo is now archived (it is here just for historical reasons). Refer to the AiiDA implementation instead.**
 
 A simple mock-up of a possible new implementation of the AiiDA repository,
 leveraging the disk-objectstore package.
